@@ -15,12 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("http://localhost:3000"),
   title: {
-    default: "Awaazera — Hear what’s real",
-    template: "%s · Awaazera",
+    default: "VoxAuth — Hear what’s real",
+    template: "%s · VoxAuth",
   },
   description:
     "Multilingual voice authenticity and audio forensics—starting with Urdu.",
-  applicationName: "Awaazera",
+  applicationName: "VoxAuth",
   keywords: [
     "voice authenticity",
     "deepfake detection",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     "audio forensics",
   ],
   openGraph: {
-    title: "Awaazera — Hear what’s real",
+    title: "VoxAuth — Hear what’s real",
     description:
       "Detect synthetic speech, understand the evidence, and act with confidence.",
     type: "website",
@@ -37,13 +37,13 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1792,
         height: 910,
-        alt: "Awaazera — Hear what’s real",
+        alt: "VoxAuth — Hear what’s real",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Awaazera — Hear what’s real",
+    title: "VoxAuth — Hear what’s real",
     description: "Multilingual voice authenticity, built for evidence.",
     images: ["/og.png"],
   },

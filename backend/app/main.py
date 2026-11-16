@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -16,11 +17,14 @@ from .audio import (
     validate_upload_name,
 )
 from .config import get_settings
+from .database import init_db
 from .inference import AasistService, ServiceConfig
-from .schemas import AnalysisResponse, ErrorResponse, HealthResponse
+from .repository import get_analysis_json, list_analyses, save_analysis, sha256_file, get_stats
+from .schemas import AnalysisResponse, ErrorResponse, HealthResponse, HistoryItem, StatsResponse
 
 
 settings = get_settings()
+logger = logging.getLogger("voxauth")
 
 
 def _build_service(language_code: str) -> AasistService:
@@ -42,6 +46,7 @@ def _build_service(language_code: str) -> AasistService:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await run_in_threadpool(init_db)
     services: dict[str, AasistService] = {}
     for language_code in settings.language_profiles:
         service = _build_service(language_code)
@@ -129,7 +134,7 @@ async def analyze_audio(
             normalized = Path(temporary_dir) / "normalized.wav"
             await save_upload(audio, source, settings.max_upload_bytes)
             service = services[language_code]
-            return await run_in_threadpool(
+            result = await run_in_threadpool(
                 _normalize_and_analyze,
                 service,
                 source,
@@ -137,8 +142,43 @@ async def analyze_audio(
                 filename,
                 audio.content_type,
             )
+            try:
+                audio_sha256 = await run_in_threadpool(sha256_file, source)
+                await run_in_threadpool(save_analysis, result, audio_sha256)
+            except Exception:
+                # A database problem should never break the detection result.
+                logger.exception("Could not save analysis %s", result.analysis_id)
+            return result
     except AudioProcessingError as exc:
         status_code = 413 if "larger than" in str(exc) else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
     finally:
         await audio.close()
+
+
+@app.get("/v1/history", response_model=list[HistoryItem])
+async def history(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    language: str | None = None,
+) -> list[HistoryItem]:
+    return await run_in_threadpool(list_analyses, limit, offset, language)
+
+
+@app.get(
+    "/v1/history/{analysis_id}",
+    response_model=AnalysisResponse,
+    responses={404: {"model": ErrorResponse}},
+)
+async def history_item(analysis_id: str):
+    stored = await run_in_threadpool(get_analysis_json, analysis_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    return stored
+
+@app.get("/v1/stats", response_model=StatsResponse)
+async def stats(
+    days: int = Query(30, ge=1, le=365),
+    tz_offset_minutes: int = Query(0, ge=-840, le=840),
+) -> StatsResponse:
+    return await run_in_threadpool(get_stats, days, tz_offset_minutes)

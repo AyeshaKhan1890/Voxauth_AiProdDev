@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, ConfigDict, Field
 
 class AudioMetadata(BaseModel):
     filename: str
@@ -66,3 +66,43 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
 
+class HistoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    analysis_id: str
+    quality_rating: str
+    created_at: datetime
+    filename: str
+    language: str
+    verdict: Literal["synthetic", "authentic", "uncertain"]
+    synthetic_probability: float
+    authentic_probability: float
+    duration_seconds: float
+    processing_ms: int
+    window_count: int
+    flagged_window_count: int
+
+class DailyCount(BaseModel):
+    date: str
+    total: int
+    synthetic: int
+    authentic: int
+    uncertain: int
+
+
+class WarningCount(BaseModel):
+    message: str
+    count: int
+
+
+class StatsResponse(BaseModel):
+    days: int
+    total: int
+    verdicts: dict[str, int]
+    languages: dict[str, int]
+    quality: dict[str, int]
+    avg_processing_ms: int | None
+    avg_duration_seconds: float | None
+    avg_synthetic_probability: float | None
+    daily: list[DailyCount]
+    warnings: list[WarningCount]

@@ -94,3 +94,60 @@ export async function analyzeAudio(
   return (await response.json()) as AnalysisResponse;
 }
 
+export interface HistoryItem {
+  analysis_id: string;
+  created_at: string;
+  filename: string;
+  language: string;
+  verdict: AnalysisVerdict;
+  synthetic_probability: number;
+  authentic_probability: number;
+  duration_seconds: number;
+  processing_ms: number;
+  window_count: number;
+  flagged_window_count: number;
+  quality_rating: string;
+}
+
+export async function fetchHistory(signal?: AbortSignal): Promise<HistoryItem[]> {
+  const response = await fetch("/api/history?limit=100", { cache: "no-store", signal });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new AnalysisApiError(payload.detail || "Could not load analysis history.", response.status);
+  }
+  return (await response.json()) as HistoryItem[];
+}
+
+export interface DailyCount {
+  date: string;
+  total: number;
+  synthetic: number;
+  authentic: number;
+  uncertain: number;
+}
+
+export interface StatsResponse {
+  days: number;
+  total: number;
+  verdicts: Partial<Record<AnalysisVerdict, number>>;
+  languages: Record<string, number>;
+  quality: Record<string, number>;
+  avg_processing_ms: number | null;
+  avg_duration_seconds: number | null;
+  avg_synthetic_probability: number | null;
+  daily: DailyCount[];
+  warnings: { message: string; count: number }[];
+}
+
+export async function fetchStats(days: number, signal?: AbortSignal): Promise<StatsResponse> {
+  const offset = -new Date().getTimezoneOffset(); // minutes ahead of UTC
+  const response = await fetch(`/api/stats?days=${days}&tz_offset_minutes=${offset}`, {
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new AnalysisApiError(payload.detail || "Could not load analytics.", response.status);
+  }
+  return (await response.json()) as StatsResponse;
+}

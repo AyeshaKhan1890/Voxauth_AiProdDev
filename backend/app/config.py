@@ -43,6 +43,7 @@ class Settings:
     batch_size: int
     window_hop_samples: int
     cors_origins: tuple[str, ...]
+    database_url: str
 
 
 def get_settings() -> Settings:
@@ -109,4 +110,8 @@ def get_settings() -> Settings:
         batch_size=batch_size,
         window_hop_samples=window_hop_samples,
         cors_origins=origins,
+        database_url=os.getenv(
+            "DATABASE_URL",
+            f"sqlite:///{(BACKEND_ROOT / 'data' / 'voxauth.db').as_posix()}",
+        ),
     )
