@@ -1,0 +1,2 @@
+"""Awaazera AASIST inference service."""
+
