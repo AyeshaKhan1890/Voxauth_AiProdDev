@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -48,7 +49,14 @@ def _build_service(language_code: str) -> AasistService:
 async def lifespan(app: FastAPI):
     await run_in_threadpool(init_db)
     services: dict[str, AasistService] = {}
+    enabled = {
+        code.strip()
+        for code in os.getenv("AASIST_LANGUAGES", "ur").split(",")
+        if code.strip()
+    }
     for language_code in settings.language_profiles:
+        if language_code not in enabled:
+            continue
         service = _build_service(language_code)
         await run_in_threadpool(service.load)
         services[language_code] = service
